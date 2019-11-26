@@ -1,0 +1,151 @@
+import csv
+import random
+import datetime
+
+LOG_FILE = 'attempts.csv'
+GERMAN_DICTIONARY_FILE = 'german_dict.csv'  # modified from http://frequencylists.blogspot.com/2016/01/the-2980-most-frequently-used-german.html
+
+
+class _Getch:
+    """Gets a single character from standard input.  Does not echo to the screen.
+    Source: https://stackoverflow.com/a/510364"""
+    def __init__(self):
+        try:
+            self.impl = _GetchWindows()
+        except ImportError:
+            self.impl = _GetchUnix()
+
+    def __call__(self): return self.impl()
+
+
+class _GetchUnix:
+    """Source: https://stackoverflow.com/a/510364"""
+    def __init__(self):
+        import tty, sys
+
+    def __call__(self):
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+
+class _GetchWindows:
+    """Source: https://stackoverflow.com/a/510364"""
+    def __init__(self):
+        import msvcrt
+
+    def __call__(self):
+        import msvcrt
+        return msvcrt.getch()
+
+
+class bcolors:
+    """Source: https://stackoverflow.com/a/287944"""
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+class Word:
+    getch = _Getch()
+
+    def __init__(self, id, D, EN, article):
+        self.D = D
+        self.EN = EN
+        self.id = id
+        self.article = article
+        self.prev_attempts = []
+
+
+    def __repr__(self):
+        return(f'{self.article} {self.D} -- {self.probability} {self.prev_attempts}')
+
+    def calc_probability(self):
+        self.probability = 1
+        for n, was_attempt_correct in enumerate(self.prev_attempts[-5:]):
+            if not was_attempt_correct:
+                self.probability *= (n + 1)
+
+    def play(self):
+        date = datetime.date.today()
+        time = datetime.datetime.now().time()
+
+        print(self.D)
+        inputted_article = {'a': 'Der', 'r': 'Die', 's': 'Das'}[self.getch()]
+        is_correct_article = inputted_article == self.article
+        if is_correct_article:
+            print(f'{bcolors.OKGREEN}{self.article} {self.D} {bcolors.ENDC}')
+        else:
+            print(f'{bcolors.FAIL}{self.article} {self.D} {bcolors.ENDC}')
+
+        self.prev_attempts.append(is_correct_article)
+        self.calc_probability()
+
+        with open(LOG_FILE, 'a') as fout:
+            writer = csv.writer(fout)
+            writer.writerow([self.id,
+                             self.D,
+                             self.EN,
+                             self.article,
+                             inputted_article,
+                             is_correct_article,
+                             date,
+                             time])
+
+
+def main():
+    dicty = parse_dictionary_file()
+    add_log_file_info_to_dict(dicty)
+
+    for word_id, word in dicty.items():
+        word.calc_probability()
+
+    while True:
+        probabilities_list = [dicty[id].probability for id in dicty.keys()]
+        word_id = random.choices(list(dicty.keys()), weights=probabilities_list)[0]
+        word = dicty[word_id]
+        print(word)
+        word.play()
+
+
+def add_log_file_info_to_dict(dicty):
+    with open(LOG_FILE) as fin:
+        reader = csv.reader(fin)
+        next(reader)  # skip header
+        for n, row in enumerate(reader):
+            word_id = int(row[0])
+            was_correct = row[5] == 'True'
+            dicty[word_id].prev_attempts.append(was_correct)
+
+
+def parse_dictionary_file():
+    dicty = {}
+
+    with open(GERMAN_DICTIONARY_FILE) as csvfile:
+         reader = csv.reader(csvfile, delimiter='\t')
+         for row in reader:
+             id = int(row[0])
+             english_word = row[1].strip()
+             german_word = row[2].strip()
+             article = german_word.split(' ')[0]
+             german_word_without_article = ' '.join(german_word.split(' ')[1:])
+
+             word = Word(id, german_word_without_article, english_word, article)
+             dicty[id] = word
+
+    return dicty
+
+
+if __name__ == '__main__':
+    main()
