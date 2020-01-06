@@ -3,6 +3,8 @@ import random
 import datetime
 import argparse
 import re
+import subprocess
+import os
 
 LOG_FILE = 'attempts.csv'
 GERMAN_DICTIONARY_FILE = 'german_dict.csv'  # modified from http://frequencylists.blogspot.com/2016/01/the-2980-most-frequently-used-german.html
@@ -66,7 +68,7 @@ class Word:
         self.calc_probability()
 
         # Log the attempts, including date, time and correctness
-        with open(LOG_FILE, 'a') as fout:
+        with open(LOG_FILE, 'a', newline='', encoding='utf-8') as fout:
             writer = csv.writer(fout)
             writer.writerow([self.id,
                              self.D,
@@ -126,7 +128,7 @@ def filter_word_id_to_word_dict_by_command_line_args(word_id_to_word_dict):
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--range', help='an lowerlimit:upperlimit range of word_ids to focus on', required=False, type=check_range)
     parser.add_argument('-p', '--probability', help='only pick words with at least this probability', required=False, type=int)
-    parser.add_argument('-l', '--letter', help='only pick words starting with this letter (in Capital)', required=False)
+    parser.add_argument('-l', '--letter', help='only pick words starting with this letter', required=False)
     args = parser.parse_args()
 
     # if providing the range argument, only keep words within a certain word_id range
@@ -149,15 +151,15 @@ def filter_word_id_to_word_dict_by_command_line_args(word_id_to_word_dict):
 
 def add_log_file_info_to_dict(word_id_to_word_dict):
     """add information regarding correctness of previous attempts to the Word
-       object using the log file of previous attempts"""
-    with open(LOG_FILE) as fin:
-        reader = csv.reader(fin)
-        next(reader)  # skip header
-        for n, row in enumerate(reader):
-            word_id = int(row[0])
-            was_correct = row[5] == 'True'
-            if word_id in word_id_to_word_dict:
-                word_id_to_word_dict[word_id].prev_attempts.append(was_correct)
+       objects using the log file of previous attempts"""
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, encoding='utf-8') as fin:
+            reader = csv.reader(fin)
+            for n, row in enumerate(reader):
+                word_id = int(row[0])
+                was_correct = row[5] == 'True'
+                if word_id in word_id_to_word_dict:
+                    word_id_to_word_dict[word_id].prev_attempts.append(was_correct)
 
     # After prev. attempts were added, calculate the probabily of choosing this word
     for word_id, word in word_id_to_word_dict.items():
@@ -169,7 +171,7 @@ def parse_dictionary_file():
     python dictionary"""
     word_id_to_word_dict = {}
 
-    with open(GERMAN_DICTIONARY_FILE) as csvfile:
+    with open(GERMAN_DICTIONARY_FILE, encoding='utf-8') as csvfile:
          reader = csv.reader(csvfile, delimiter='\t')
          for row in reader:
              id = int(row[0])
@@ -192,7 +194,11 @@ def _find_getch():
     except ImportError:
         # Non-POSIX. Return msvcrt's (Windows') getch.
         import msvcrt
-        return msvcrt.getch
+
+        # due to a bug (https://stackoverflow.com/a/51524239), windows console
+        # won't show colours w/o calling subprocess.call
+        subprocess.call('', shell=True)
+        return msvcrt.getwch
 
     # POSIX system. Create and return a getch that manipulates the tty.
     import sys, tty
