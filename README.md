@@ -20,6 +20,6 @@ If a wrong article is chosen, the relative probablity of the word being chosen a
 
 Add the `-r` argument to filter the dataset to a certain range range of word ids. Add `-r 100:200` to only play with words with ids between 100 and 200.
 
-Add the `-p` option to filter the dataset to only play with at least a certain relative probabiliy, e.g. `-p
+Add the `-p` option to filter the dataset to only play with at least a certain relative probabiliy, e.g. `-p 2`
 
 Add the `-l` option to only play with words starting with a certain letter, e.g. `-l a`.
