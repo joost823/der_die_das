@@ -8,8 +8,8 @@ import os
 
 LOG_FILE = 'attempts.csv'
 GERMAN_DICTIONARY_FILE = 'german_dict.csv'  # modified from http://frequencylists.blogspot.com/2016/01/the-2980-most-frequently-used-german.html
-KEYBOARD_INPUT_TO_ARTICLE = {'a': 'Der', 'r': 'Die', 's': 'Das'}
-TRANSLATE_KEY = 't'
+KEYBOARD_INPUT_TO_ARTICLE = {'a': 'Der', 's': 'Die', 'd': 'Das'}
+TRANSLATE_KEY = 'f'
 QUIT_KEY = 'q'
 
 
